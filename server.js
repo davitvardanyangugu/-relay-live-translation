@@ -134,6 +134,10 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(port, () => {
-  console.log(`Relay running at http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(port, () => {
+    console.log(`Relay running at http://localhost:${port}`);
+  });
+}
+
+export default server;
