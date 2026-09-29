@@ -66,7 +66,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E10000000000000000000002 /* Build configuration list for PBXNativeTarget "Relay" */;
 			buildPhases = (
-				C10000000000000000000004 /* Generate App Icons */,
 				C10000000000000000000002 /* Sources */,
 				C10000000000000000000001 /* Frameworks */,
 				C10000000000000000000003 /* Resources */,
@@ -123,24 +122,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		C10000000000000000000004 /* Generate App Icons */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Generate App Icons";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "ICON_DIR=\"$SRCROOT/Relay/Assets.xcassets/AppIcon.appiconset\"\nSRC=\"$ICON_DIR/AppIcon.png\"\nif [ -f \"$SRC\" ]; then\n  sips -z 20 20 \"$SRC\" --out \"$ICON_DIR/Icon-20.png\" >/dev/null\n  sips -z 40 40 \"$SRC\" --out \"$ICON_DIR/Icon-20@2x.png\" >/dev/null\n  sips -z 60 60 \"$SRC\" --out \"$ICON_DIR/Icon-20@3x.png\" >/dev/null\n  sips -z 29 29 \"$SRC\" --out \"$ICON_DIR/Icon-29.png\" >/dev/null\n  sips -z 58 58 \"$SRC\" --out \"$ICON_DIR/Icon-29@2x.png\" >/dev/null\n  sips -z 87 87 \"$SRC\" --out \"$ICON_DIR/Icon-29@3x.png\" >/dev/null\n  sips -z 40 40 \"$SRC\" --out \"$ICON_DIR/Icon-40.png\" >/dev/null\n  sips -z 80 80 \"$SRC\" --out \"$ICON_DIR/Icon-40@2x.png\" >/dev/null\n  sips -z 120 120 \"$SRC\" --out \"$ICON_DIR/Icon-40@3x.png\" >/dev/null\n  sips -z 120 120 \"$SRC\" --out \"$ICON_DIR/Icon-60@2x.png\" >/dev/null\n  sips -z 180 180 \"$SRC\" --out \"$ICON_DIR/Icon-60@3x.png\" >/dev/null\n  sips -z 76 76 \"$SRC\" --out \"$ICON_DIR/Icon-76.png\" >/dev/null\n  sips -z 152 152 \"$SRC\" --out \"$ICON_DIR/Icon-76@2x.png\" >/dev/null\n  sips -z 167 167 \"$SRC\" --out \"$ICON_DIR/Icon-83.5@2x.png\" >/dev/null\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C10000000000000000000002 /* Sources */ = {
