@@ -5,6 +5,10 @@ const targetLang = $("targetLang");
 const messageInput = $("messageInput");
 const messages = $("messages");
 const apiState = $("apiState");
+const sendTextButton = $("sendText");
+const micButton = $("micButton");
+
+let googleBackendReady = false;
 
 function decodeHtml(value) {
   const el = document.createElement("textarea");
@@ -14,6 +18,10 @@ function decodeHtml(value) {
 
 function selectedLocale(select) {
   return select.options[select.selectedIndex]?.dataset.locale || select.value;
+}
+
+function languageName(select) {
+  return select.options[select.selectedIndex]?.textContent || select.value;
 }
 
 function toast(message) {
@@ -34,27 +42,73 @@ async function googleTranslate(text, source = sourceLang.value, target = targetL
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Translation failed");
+    throw new Error(data.error || "Google translation failed");
   }
 
   return {
     text: decodeHtml(data.translation),
-    detectedSourceLanguage: data.detectedSourceLanguage
+    detectedSourceLanguage: data.detectedSourceLanguage,
+    engine: "google"
   };
+}
+
+async function fallbackTranslate(text, source = sourceLang.value, target = targetLang.value) {
+  const safeSource = source === "auto" ? "en" : source;
+
+  if (safeSource === target) {
+    return { text, detectedSourceLanguage: safeSource, engine: "fallback" };
+  }
+
+  const url =
+    "https://api.mymemory.translated.net/get?q=" +
+    encodeURIComponent(text) +
+    "&langpair=" +
+    encodeURIComponent(safeSource + "|" + target);
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!response.ok || !data?.responseData?.translatedText) {
+    throw new Error("Fallback translation service is unavailable right now.");
+  }
+
+  return {
+    text: decodeHtml(data.responseData.translatedText),
+    detectedSourceLanguage: safeSource,
+    engine: "fallback"
+  };
+}
+
+async function translateText(text, source = sourceLang.value, target = targetLang.value) {
+  if (googleBackendReady) {
+    try {
+      return await googleTranslate(text, source, target);
+    } catch (error) {
+      console.warn("Google backend failed, trying fallback:", error);
+    }
+  }
+
+  return fallbackTranslate(text, source, target);
 }
 
 async function checkApi() {
   try {
-    const response = await fetch("/api/health");
+    const response = await fetch("/api/health", { cache: "no-store" });
     const data = await response.json();
 
-    if (data.googleTranslateConfigured) {
+    googleBackendReady = Boolean(data.googleTranslateConfigured);
+
+    if (googleBackendReady) {
       apiState.textContent = "● Google Translation ready";
+      apiState.title = "Using Google Cloud Translation";
     } else {
-      apiState.textContent = "○ Add Google API key";
+      apiState.textContent = "◐ Demo fallback ready";
+      apiState.title = "Google API key is not configured yet, so Relay is using a fallback translator.";
     }
   } catch {
-    apiState.textContent = "○ Server offline";
+    googleBackendReady = false;
+    apiState.textContent = "◐ Demo fallback ready";
+    apiState.title = "The Google backend is not online yet, so Relay is using a fallback translator.";
   }
 }
 
@@ -85,6 +139,7 @@ $("swap").addEventListener("click", () => {
   if (newSource && newTarget) {
     sourceLang.value = oldTarget;
     targetLang.value = oldSource;
+    toast(languageName(sourceLang) + " → " + languageName(targetLang));
   }
 });
 
@@ -105,27 +160,38 @@ function addBubble(type, label, text) {
   bubble.append(caption, body);
   messages.appendChild(bubble);
   messages.scrollTop = messages.scrollHeight;
+  return bubble;
 }
 
 async function sendText() {
   const text = messageInput.value.trim();
-  if (!text) return;
+  if (!text) {
+    toast("Type something first.");
+    return;
+  }
 
-  $("sendText").disabled = true;
+  sendTextButton.disabled = true;
+  sendTextButton.textContent = "Translating…";
+
   addBubble("source", "YOU", text);
   messageInput.value = "";
 
   try {
-    const result = await googleTranslate(text);
-    addBubble("translation", "GOOGLE TRANSLATION", result.text);
+    const result = await translateText(text);
+    const label =
+      result.engine === "google"
+        ? "GOOGLE TRANSLATION"
+        : "DEMO TRANSLATION";
+    addBubble("translation", label, result.text);
   } catch (error) {
     addBubble("translation", "ERROR", error.message);
   } finally {
-    $("sendText").disabled = false;
+    sendTextButton.disabled = false;
+    sendTextButton.textContent = "Translate";
   }
 }
 
-$("sendText").addEventListener("click", sendText);
+sendTextButton.addEventListener("click", sendText);
 
 messageInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -152,11 +218,11 @@ function speak(text) {
     return;
   }
 
-  speechSynthesis.cancel();
+  window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = selectedLocale(targetLang);
-  speechSynthesis.speak(utterance);
+  window.speechSynthesis.speak(utterance);
 }
 
 if (SpeechRecognition) {
@@ -166,8 +232,8 @@ if (SpeechRecognition) {
 
   recognition.onstart = () => {
     listening = true;
-    $("micButton").textContent = "■ Stop";
-    $("micButton").classList.add("recording");
+    micButton.textContent = "■ Stop";
+    micButton.classList.add("recording");
     setCallState(
       "Listening",
       "Speak naturally. Relay will translate when you pause.",
@@ -202,30 +268,36 @@ if (SpeechRecognition) {
 
   recognition.onend = () => {
     listening = false;
-    $("micButton").textContent = "🎙 Start speaking";
-    $("micButton").classList.remove("recording");
+    micButton.textContent = "🎙 Start speaking";
+    micButton.classList.remove("recording");
 
     if ($("callState").textContent === "Listening") {
       setCallState("Ready", "Tap the microphone and speak.", false);
     }
   };
 } else {
-  $("micButton").disabled = true;
+  micButton.disabled = true;
   setCallState(
     "Speech recognition unavailable",
-    "This browser does not expose speech recognition. Texting mode still works.",
+    "This browser does not expose browser speech recognition. Texting mode still works.",
     false
   );
 }
 
 async function translateVoice(text) {
-  setCallState("Translating", "Sending transcript to Google Translation…", false);
+  setCallState("Translating", "Translating your speech…", false);
   $("voiceTranslation").textContent = "…";
 
   try {
-    const result = await googleTranslate(text);
+    const result = await translateText(text);
     $("voiceTranslation").textContent = result.text;
-    setCallState("Translated", "Ready for the next phrase.", false);
+
+    const engineText =
+      result.engine === "google"
+        ? "Google translation complete."
+        : "Demo translation complete.";
+
+    setCallState("Translated", engineText + " Ready for the next phrase.", false);
 
     if ($("autoSpeak").checked) {
       speak(result.text);
@@ -236,8 +308,11 @@ async function translateVoice(text) {
   }
 }
 
-$("micButton").addEventListener("click", () => {
-  if (!recognition) return;
+micButton.addEventListener("click", () => {
+  if (!recognition) {
+    toast("Speech recognition is not supported in this browser.");
+    return;
+  }
 
   if (listening) {
     recognition.stop();
