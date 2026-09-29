@@ -2,228 +2,190 @@ const $ = (id) => document.getElementById(id);
 
 const sourceLang = $("sourceLang");
 const targetLang = $("targetLang");
-const messageInput = $("messageInput");
-const messages = $("messages");
-const apiState = $("apiState");
-const sendTextButton = $("sendText");
-const micButton = $("micButton");
+const sourceText = $("sourceText");
+const translationOutput = $("translationOutput");
+const readAloud = $("readAloud");
+const settingsReadAloud = $("settingsReadAloud");
+const conversationReadAloud = $("conversationReadAloud");
 
-let googleBackendReady = false;
-
-function decodeHtml(value) {
-  const el = document.createElement("textarea");
-  el.innerHTML = value;
-  return el.value;
-}
-
-function selectedLocale(select) {
-  return select.options[select.selectedIndex]?.dataset.locale || select.value;
-}
-
-function languageName(select) {
-  return select.options[select.selectedIndex]?.textContent || select.value;
-}
+let roomId = null;
+let socket = null;
+let recognition = null;
+let recognitionMode = null;
+let listening = false;
 
 function toast(message) {
   const el = $("toast");
   el.textContent = message;
   el.classList.add("show");
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove("show"), 2400);
+  toast.timer = setTimeout(() => el.classList.remove("show"), 2600);
 }
 
-async function googleTranslate(text, source = sourceLang.value, target = targetLang.value) {
-  const response = await fetch("/api/translate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, source, target })
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.error || "Google translation failed");
-  }
-
-  return {
-    text: decodeHtml(data.translation),
-    detectedSourceLanguage: data.detectedSourceLanguage,
-    engine: "google"
-  };
+function localeFor(select) {
+  return select.options[select.selectedIndex]?.dataset.locale || select.value;
 }
 
-async function fallbackTranslate(text, source = sourceLang.value, target = targetLang.value) {
-  const safeSource = source === "auto" ? "en" : source;
-
-  if (safeSource === target) {
-    return { text, detectedSourceLanguage: safeSource, engine: "fallback" };
-  }
-
-  const url =
-    "https://api.mymemory.translated.net/get?q=" +
-    encodeURIComponent(text) +
-    "&langpair=" +
-    encodeURIComponent(safeSource + "|" + target);
-
-  const response = await fetch(url);
-  const data = await response.json();
-
-  if (!response.ok || !data?.responseData?.translatedText) {
-    throw new Error("Fallback translation service is unavailable right now.");
-  }
-
-  return {
-    text: decodeHtml(data.responseData.translatedText),
-    detectedSourceLanguage: safeSource,
-    engine: "fallback"
-  };
+function plainLanguageName(select) {
+  return (select.options[select.selectedIndex]?.textContent || select.value).replace(/^[A-Z]{2}\s/, "");
 }
 
-async function translateText(text, source = sourceLang.value, target = targetLang.value) {
-  if (googleBackendReady) {
-    try {
-      return await googleTranslate(text, source, target);
-    } catch (error) {
-      console.warn("Google backend failed, trying fallback:", error);
-    }
-  }
-
-  return fallbackTranslate(text, source, target);
+function randomRoomId() {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function checkApi() {
-  try {
-    const response = await fetch("/api/health", { cache: "no-store" });
-    const data = await response.json();
-
-    googleBackendReady = Boolean(data.googleTranslateConfigured);
-
-    if (googleBackendReady) {
-      apiState.textContent = "● Google Translation ready";
-      apiState.title = "Using Google Cloud Translation";
-    } else {
-      apiState.textContent = "◐ Demo fallback ready";
-      apiState.title = "Google API key is not configured yet, so Relay is using a fallback translator.";
-    }
-  } catch {
-    googleBackendReady = false;
-    apiState.textContent = "◐ Demo fallback ready";
-    apiState.title = "The Google backend is not online yet, so Relay is using a fallback translator.";
-  }
+function inviteUrl(id) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("room", id);
+  return url.toString();
 }
 
-checkApi();
+function switchView(viewName) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".nav-link").forEach(v => v.classList.remove("active"));
 
-document.querySelectorAll(".tab").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+  $(viewName + "View").classList.add("active");
+  const nav = document.querySelector('.nav-link[data-view="' + viewName + '"]');
+  if (nav) nav.classList.add("active");
 
-    button.classList.add("active");
-    $(button.dataset.tab + "Tab").classList.add("active");
-  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  if (viewName === "conversation") ensureRoom();
+}
+
+document.querySelectorAll("[data-view]").forEach(button => {
+  button.addEventListener("click", () => switchView(button.dataset.view));
+});
+
+sourceText.addEventListener("input", () => {
+  $("charCount").textContent = sourceText.value.length + " / 1,200";
 });
 
 $("swap").addEventListener("click", () => {
-  if (sourceLang.value === "auto") {
-    toast("Choose a source language before swapping.");
-    return;
+  const from = sourceLang.value;
+  sourceLang.value = targetLang.value;
+  targetLang.value = from;
+
+  const translated = translationOutput.classList.contains("has-text")
+    ? translationOutput.textContent
+    : "";
+
+  if (translated) {
+    const old = sourceText.value;
+    sourceText.value = translated;
+    translationOutput.textContent = old || "Your translation appears here";
+    translationOutput.classList.toggle("has-text", Boolean(old));
+    sourceText.dispatchEvent(new Event("input"));
   }
 
-  const oldSource = sourceLang.value;
-  const oldTarget = targetLang.value;
-
-  const newSource = [...sourceLang.options].find((o) => o.value === oldTarget);
-  const newTarget = [...targetLang.options].find((o) => o.value === oldSource);
-
-  if (newSource && newTarget) {
-    sourceLang.value = oldTarget;
-    targetLang.value = oldSource;
-    toast(languageName(sourceLang) + " → " + languageName(targetLang));
-  }
+  toast(plainLanguageName(sourceLang) + " → " + plainLanguageName(targetLang));
 });
 
-function addBubble(type, label, text) {
-  const empty = messages.querySelector(".empty");
-  if (empty) empty.remove();
+async function translateText(text) {
+  const response = await fetch("/api/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      source: sourceLang.value,
+      target: targetLang.value
+    })
+  });
 
-  const bubble = document.createElement("div");
-  bubble.className = "message " + type;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Translation failed.");
 
-  const caption = document.createElement("span");
-  caption.className = "label";
-  caption.textContent = label;
+  const decoder = document.createElement("textarea");
+  decoder.innerHTML = data.translation || "";
 
-  const body = document.createElement("div");
-  body.textContent = text;
-
-  bubble.append(caption, body);
-  messages.appendChild(bubble);
-  messages.scrollTop = messages.scrollHeight;
-  return bubble;
+  return {
+    text: decoder.value,
+    engine: data.engine || "translation"
+  };
 }
 
-async function sendText() {
-  const text = messageInput.value.trim();
-  if (!text) {
-    toast("Type something first.");
+function speakText(text, locale = localeFor(targetLang)) {
+  if (!text || !("speechSynthesis" in window)) {
+    if (!("speechSynthesis" in window)) toast("Text-to-speech is not supported in this browser.");
     return;
   }
 
-  sendTextButton.disabled = true;
-  sendTextButton.textContent = "Translating…";
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = locale;
+  speechSynthesis.speak(utterance);
+}
 
-  addBubble("source", "YOU", text);
-  messageInput.value = "";
+async function runTranslator(text = sourceText.value.trim()) {
+  if (!text) {
+    toast("Type something or press Speak first.");
+    return;
+  }
+
+  $("translateButton").disabled = true;
+  $("translatorStatus").textContent = "Translating…";
 
   try {
     const result = await translateText(text);
-    const label =
-      result.engine === "google"
-        ? "GOOGLE TRANSLATION"
-        : "DEMO TRANSLATION";
-    addBubble("translation", label, result.text);
+    translationOutput.textContent = result.text;
+    translationOutput.classList.add("has-text");
+    $("translatorStatus").textContent =
+      result.engine === "google" ? "Translated with Google" : "Translation ready";
+
+    if (readAloud.checked) speakText(result.text);
   } catch (error) {
-    addBubble("translation", "ERROR", error.message);
+    $("translatorStatus").textContent = "Translation unavailable";
+    toast(error.message);
   } finally {
-    sendTextButton.disabled = false;
-    sendTextButton.textContent = "Translate";
+    $("translateButton").disabled = false;
   }
 }
 
-sendTextButton.addEventListener("click", sendText);
-
-messageInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    sendText();
-  }
-});
-
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
-
-let recognition = null;
-let listening = false;
-
-function setCallState(title, hint, live = false) {
-  $("callState").textContent = title;
-  $("callHint").textContent = hint;
-  $("pulse").classList.toggle("live", live);
-}
-
-function speak(text) {
-  if (!("speechSynthesis" in window)) {
-    toast("Text-to-speech is not available in this browser.");
+$("translateButton").addEventListener("click", () => runTranslator());
+$("listenTranslation").addEventListener("click", () => {
+  if (!translationOutput.classList.contains("has-text")) {
+    toast("Translate something first.");
     return;
   }
+  speakText(translationOutput.textContent);
+});
 
-  window.speechSynthesis.cancel();
+$("copyTranslation").addEventListener("click", async () => {
+  if (!translationOutput.classList.contains("has-text")) {
+    toast("Translate something first.");
+    return;
+  }
+  await navigator.clipboard.writeText(translationOutput.textContent);
+  toast("Translation copied.");
+});
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = selectedLocale(targetLang);
-  window.speechSynthesis.speak(utterance);
+$("tryHello").addEventListener("click", () => {
+  sourceText.value = "Hello! It is nice to meet you.";
+  sourceText.dispatchEvent(new Event("input"));
+  runTranslator(sourceText.value);
+});
+
+$("howRelayWorks").addEventListener("click", () => {
+  $("howPanel").hidden = !$("howPanel").hidden;
+});
+
+function syncReadAloud(source) {
+  const value = source.checked;
+  readAloud.checked = value;
+  settingsReadAloud.checked = value;
 }
+readAloud.addEventListener("change", () => syncReadAloud(readAloud));
+settingsReadAloud.addEventListener("change", () => syncReadAloud(settingsReadAloud));
+
+function setCallState(title, hint, live = false) {
+  $("callStatus").textContent = title;
+  $("callHint").textContent = hint;
+  $("callDot").classList.toggle("live", live);
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
@@ -232,13 +194,13 @@ if (SpeechRecognition) {
 
   recognition.onstart = () => {
     listening = true;
-    micButton.textContent = "■ Stop";
-    micButton.classList.add("recording");
-    setCallState(
-      "Listening",
-      "Speak naturally. Relay will translate when you pause.",
-      true
-    );
+    if (recognitionMode === "translator") {
+      $("speakButton").textContent = "Stop";
+      $("translatorStatus").textContent = "Listening…";
+    } else {
+      $("callSpeakButton").textContent = "Stop";
+      setCallState("Listening", "Speak naturally. Relay will translate when you pause.", true);
+    }
   };
 
   recognition.onresult = (event) => {
@@ -246,71 +208,48 @@ if (SpeechRecognition) {
     let interimText = "";
 
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      const text = event.results[i][0].transcript;
-
-      if (event.results[i].isFinal) {
-        finalText += text;
-      } else {
-        interimText += text;
-      }
+      const part = event.results[i][0].transcript;
+      if (event.results[i].isFinal) finalText += part;
+      else interimText += part;
     }
 
-    $("heardText").textContent = finalText || interimText || "—";
+    const heard = finalText || interimText;
 
-    if (finalText) {
-      translateVoice(finalText);
+    if (recognitionMode === "translator") {
+      sourceText.value = heard;
+      sourceText.dispatchEvent(new Event("input"));
+      if (finalText) runTranslator(finalText);
+    } else {
+      $("heardText").textContent = heard || "—";
+      if (finalText) sendConversationText(finalText);
     }
   };
 
   recognition.onerror = (event) => {
-    setCallState("Microphone error", event.error, false);
+    if (recognitionMode === "translator") {
+      $("translatorStatus").textContent = "Microphone error";
+    } else {
+      setCallState("Microphone error", event.error, false);
+    }
+    toast("Microphone: " + event.error);
   };
 
   recognition.onend = () => {
     listening = false;
-    micButton.textContent = "🎙 Start speaking";
-    micButton.classList.remove("recording");
-
-    if ($("callState").textContent === "Listening") {
-      setCallState("Ready", "Tap the microphone and speak.", false);
+    $("speakButton").textContent = "Speak";
+    $("callSpeakButton").textContent = "Start speaking";
+    if (recognitionMode === "translator" && $("translatorStatus").textContent === "Listening…") {
+      $("translatorStatus").textContent = "Ready when you are";
+    }
+    if (recognitionMode === "conversation" && $("callStatus").textContent === "Listening") {
+      setCallState("Ready", "Tap Start speaking.", false);
     }
   };
-} else {
-  micButton.disabled = true;
-  setCallState(
-    "Speech recognition unavailable",
-    "This browser does not expose browser speech recognition. Texting mode still works.",
-    false
-  );
 }
 
-async function translateVoice(text) {
-  setCallState("Translating", "Translating your speech…", false);
-  $("voiceTranslation").textContent = "…";
-
-  try {
-    const result = await translateText(text);
-    $("voiceTranslation").textContent = result.text;
-
-    const engineText =
-      result.engine === "google"
-        ? "Google translation complete."
-        : "Demo translation complete.";
-
-    setCallState("Translated", engineText + " Ready for the next phrase.", false);
-
-    if ($("autoSpeak").checked) {
-      speak(result.text);
-    }
-  } catch (error) {
-    $("voiceTranslation").textContent = error.message;
-    setCallState("Translation error", error.message, false);
-  }
-}
-
-micButton.addEventListener("click", () => {
+function startRecognition(mode) {
   if (!recognition) {
-    toast("Speech recognition is not supported in this browser.");
+    toast("Speech recognition is not available in this browser. You can still type.");
     return;
   }
 
@@ -319,12 +258,172 @@ micButton.addEventListener("click", () => {
     return;
   }
 
-  recognition.lang =
-    sourceLang.value === "auto" ? "en-US" : selectedLocale(sourceLang);
+  recognitionMode = mode;
+  recognition.lang = localeFor(sourceLang);
 
   try {
     recognition.start();
   } catch (error) {
     toast(error.message);
   }
+}
+
+$("speakButton").addEventListener("click", () => startRecognition("translator"));
+$("callSpeakButton").addEventListener("click", () => startRecognition("conversation"));
+
+function ensureRoom(forceNew = false) {
+  if (!roomId || forceNew) {
+    const url = new URL(window.location.href);
+    roomId = !forceNew ? url.searchParams.get("room") : null;
+    if (!roomId) roomId = randomRoomId();
+    history.replaceState({}, "", inviteUrl(roomId));
+  }
+
+  $("inviteLink").value = inviteUrl(roomId);
+  connectRoom();
+}
+
+function connectRoom() {
+  if (!roomId || socket?.connected) {
+    if (socket?.connected) socket.emit("room:join", { roomId });
+    return;
+  }
+
+  if (typeof io !== "function") {
+    setCallState("Preview mode", "Deploy Relay to enable shared invitation rooms.", false);
+    return;
+  }
+
+  socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("room:join", { roomId });
+    setCallState("Connected", "Invite someone or start speaking.", false);
+  });
+
+  socket.on("room:notice", ({ text } = {}) => {
+    if (text) toast(text);
+  });
+
+  socket.on("relay:message", (message) => {
+    addRoomMessage(message, false);
+    if (conversationReadAloud.checked && message.translation) {
+      speakText(message.translation, localeFor(targetLang));
+    }
+  });
+
+  socket.on("disconnect", () => {
+    setCallState("Reconnecting…", "Trying to reconnect to the room.", false);
+  });
+}
+
+function addRoomMessage(message, mine) {
+  const empty = $("conversationMessages").querySelector(".conversation-empty");
+  if (empty) empty.remove();
+
+  const bubble = document.createElement("div");
+  bubble.className = "room-message " + (mine ? "mine" : "theirs");
+
+  const original = document.createElement("div");
+  original.textContent = message.original;
+
+  const translation = document.createElement("small");
+  translation.textContent = message.translation || "";
+
+  bubble.append(original, translation);
+  $("conversationMessages").appendChild(bubble);
+  $("conversationMessages").scrollTop = $("conversationMessages").scrollHeight;
+}
+
+async function sendConversationText(rawText = $("conversationInput").value.trim()) {
+  const text = rawText.trim();
+  if (!text) {
+    toast("Type or speak a message first.");
+    return;
+  }
+
+  $("sendConversation").disabled = true;
+  setCallState("Translating", "Preparing your message…", false);
+
+  try {
+    const result = await translateText(text);
+    const message = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      original: text,
+      translation: result.text,
+      source: sourceLang.value,
+      target: targetLang.value,
+      engine: result.engine
+    };
+
+    addRoomMessage(message, true);
+
+    if ($("conversationInput").value.trim() === text) $("conversationInput").value = "";
+    $("heardText").textContent = text;
+
+    if (socket?.connected) {
+      socket.emit("relay:message", message);
+      setCallState("Sent", "The translated message was sent to the room.", false);
+    } else {
+      setCallState("Local preview", "Deploy Relay to sync this room with another device.", false);
+    }
+
+    if (readAloud.checked) speakText(result.text);
+  } catch (error) {
+    setCallState("Translation unavailable", error.message, false);
+    toast(error.message);
+  } finally {
+    $("sendConversation").disabled = false;
+  }
+}
+
+$("sendConversation").addEventListener("click", () => sendConversationText());
+$("conversationInput").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendConversationText();
+  }
 });
+
+$("startConversation").addEventListener("click", () => {
+  ensureRoom(true);
+  switchView("conversation");
+});
+
+$("copyInvite").addEventListener("click", async () => {
+  ensureRoom();
+  await navigator.clipboard.writeText($("inviteLink").value);
+  toast("Invitation link copied.");
+});
+
+$("newRoom").addEventListener("click", () => {
+  roomId = null;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  ensureRoom(true);
+  toast("New conversation room created.");
+});
+
+async function checkHealth() {
+  try {
+    const response = await fetch("/api/health", { cache: "no-store" });
+    const data = await response.json();
+
+    $("engineStatus").textContent = data.googleTranslateConfigured
+      ? "Google Cloud Translation is connected. A fallback is also available."
+      : "Google Cloud is not configured yet. Relay will use its fallback translation service.";
+  } catch {
+    $("engineStatus").textContent =
+      "The server is not running in this preview. Deploy Relay to enable live translation and invitation rooms.";
+  }
+}
+
+const initialRoom = new URL(window.location.href).searchParams.get("room");
+if (initialRoom) {
+  roomId = initialRoom;
+  switchView("conversation");
+} else {
+  checkHealth();
+}
