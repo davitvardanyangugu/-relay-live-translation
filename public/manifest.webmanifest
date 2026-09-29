@@ -1,18 +1,29 @@
 {
+  "id": "/",
   "name": "Relay — Live Translation",
   "short_name": "Relay",
   "description": "Live voice and text translation across languages.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#f4f0e7",
   "theme_color": "#f4f0e7",
+  "orientation": "any",
+  "lang": "en",
+  "categories": ["utilities", "productivity"],
   "icons": [
     {
       "src": "/icons/relay-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
