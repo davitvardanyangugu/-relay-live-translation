@@ -3,121 +3,220 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111111">
-  <title>Relay BETA — Live Translation</title>
+  <meta name="theme-color" content="#f4f0e7">
+  <title>Relay — Live Translation</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main class="shell">
-    <header class="hero">
-      <div class="brand-row">
-        <span class="brand">Relay</span>
-        <span class="pill">BETA</span>
-        <span id="apiState" class="api-state">Checking Google…</span>
-      </div>
-
-      <h1>Across languages.<br>In the moment.</h1>
-      <p>Google-powered translation for messages and voice conversations.</p>
-    </header>
-
-    <section class="language-bar card">
-      <label>
-        I speak
-        <select id="sourceLang">
-          <option value="auto" data-locale="en-US">Auto detect</option>
-          <option value="en" data-locale="en-US" selected>English</option>
-          <option value="hy" data-locale="hy-AM">Armenian</option>
-          <option value="ru" data-locale="ru-RU">Russian</option>
-          <option value="fr" data-locale="fr-FR">French</option>
-          <option value="de" data-locale="de-DE">German</option>
-          <option value="es" data-locale="es-ES">Spanish</option>
-          <option value="it" data-locale="it-IT">Italian</option>
-          <option value="pt" data-locale="pt-PT">Portuguese</option>
-          <option value="ar" data-locale="ar-SA">Arabic</option>
-          <option value="ka" data-locale="ka-GE">Georgian</option>
-          <option value="tr" data-locale="tr-TR">Turkish</option>
-        </select>
-      </label>
-
-      <button id="swap" class="swap" aria-label="Swap languages">⇄</button>
-
-      <label>
-        Translate to
-        <select id="targetLang">
-          <option value="hy" data-locale="hy-AM" selected>Armenian</option>
-          <option value="en" data-locale="en-US">English</option>
-          <option value="ru" data-locale="ru-RU">Russian</option>
-          <option value="fr" data-locale="fr-FR">French</option>
-          <option value="de" data-locale="de-DE">German</option>
-          <option value="es" data-locale="es-ES">Spanish</option>
-          <option value="it" data-locale="it-IT">Italian</option>
-          <option value="pt" data-locale="pt-PT">Portuguese</option>
-          <option value="ar" data-locale="ar-SA">Arabic</option>
-          <option value="ka" data-locale="ka-GE">Georgian</option>
-          <option value="tr" data-locale="tr-TR">Turkish</option>
-        </select>
-      </label>
-    </section>
-
-    <nav class="tabs" aria-label="Translation mode">
-      <button class="tab active" data-tab="text">💬 Texting</button>
-      <button class="tab" data-tab="call">📞 Call mode</button>
+  <header class="site-header">
+    <button class="logo-button" data-view="translator" aria-label="Relay home">
+      <span class="logo">relay</span>
+      <span class="beta">BETA</span>
+    </button>
+    <nav class="top-nav" aria-label="Main navigation">
+      <button class="nav-link active" data-view="translator">Translator</button>
+      <button class="nav-link" data-view="conversation">Conversation</button>
+      <button class="nav-link" data-view="settings">Settings and privacy</button>
     </nav>
+  </header>
 
-    <section id="textTab" class="panel active">
-      <div class="conversation card">
-        <div id="messages" class="messages">
-          <div class="empty">Type a message below. Relay will translate it with Google.</div>
+  <main>
+    <section id="translatorView" class="view active">
+      <section class="hero">
+        <p class="kicker">ACROSS LANGUAGES. IN THE MOMENT.</p>
+        <h1>Your words.<br>Their language.</h1>
+        <p class="hero-copy">Speak or type, and let the conversation flow.</p>
+        <div class="mini-stats">
+          <span>12 languages</span>
+          <span>One conversation.</span>
         </div>
+      </section>
 
-        <div class="composer">
-          <textarea id="messageInput" maxlength="3000" placeholder="Type a message…"></textarea>
-          <button id="sendText" class="primary">Translate</button>
+      <section class="language-row" aria-label="Choose languages">
+        <label class="language-control">
+          <span>I speak</span>
+          <select id="sourceLang">
+            <option value="en" data-locale="en-US" selected>EN English</option>
+            <option value="hy" data-locale="hy-AM">HY Armenian</option>
+            <option value="ru" data-locale="ru-RU">RU Russian</option>
+            <option value="fr" data-locale="fr-FR">FR French</option>
+            <option value="de" data-locale="de-DE">DE German</option>
+            <option value="es" data-locale="es-ES">ES Spanish</option>
+            <option value="it" data-locale="it-IT">IT Italian</option>
+            <option value="pt" data-locale="pt-PT">PT Portuguese</option>
+            <option value="ar" data-locale="ar-SA">AR Arabic</option>
+            <option value="ka" data-locale="ka-GE">KA Georgian</option>
+            <option value="tr" data-locale="tr-TR">TR Turkish</option>
+            <option value="uk" data-locale="uk-UA">UK Ukrainian</option>
+          </select>
+        </label>
+
+        <button id="swap" class="swap-button" aria-label="Swap languages">
+          <span>Swap languages</span>
+          <strong>⇄</strong>
+        </button>
+
+        <label class="language-control">
+          <span>Translate to</span>
+          <select id="targetLang">
+            <option value="hy" data-locale="hy-AM" selected>HY Armenian</option>
+            <option value="en" data-locale="en-US">EN English</option>
+            <option value="ru" data-locale="ru-RU">RU Russian</option>
+            <option value="fr" data-locale="fr-FR">FR French</option>
+            <option value="de" data-locale="de-DE">DE German</option>
+            <option value="es" data-locale="es-ES">ES Spanish</option>
+            <option value="it" data-locale="it-IT">IT Italian</option>
+            <option value="pt" data-locale="pt-PT">PT Portuguese</option>
+            <option value="ar" data-locale="ar-SA">AR Arabic</option>
+            <option value="ka" data-locale="ka-GE">KA Georgian</option>
+            <option value="tr" data-locale="tr-TR">TR Turkish</option>
+            <option value="uk" data-locale="uk-UA">UK Ukrainian</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="translator-card">
+        <article class="translate-pane original-pane">
+          <div class="pane-heading">
+            <div>
+              <p class="eyebrow">ORIGINAL</p>
+              <h2>Voice or text</h2>
+            </div>
+            <span id="charCount">0 / 1,200</span>
+          </div>
+          <textarea id="sourceText" maxlength="1200" placeholder="Text to translate"></textarea>
+        </article>
+
+        <article class="translate-pane translation-pane">
+          <div class="pane-heading">
+            <div>
+              <p class="eyebrow">TRANSLATION</p>
+              <h2>A new way to understand each other.</h2>
+            </div>
+          </div>
+          <div id="translationOutput" class="translation-output">Your translation appears here</div>
+          <div class="translation-tools">
+            <button id="listenTranslation" class="text-button">Listen to translation</button>
+            <button id="copyTranslation" class="text-button">Copy translation</button>
+          </div>
+        </article>
+
+        <div class="action-strip">
+          <div class="ready-copy">
+            <strong id="translatorStatus">Ready when you are</strong>
+            <span>Use your microphone or type above</span>
+          </div>
+          <div class="main-actions">
+            <button id="speakButton" class="secondary-button">Speak</button>
+            <button id="translateButton" class="primary-button">Translate</button>
+          </div>
+          <div class="read-settings">
+            <span>Translation follows each spoken phrase.</span>
+            <label class="check-row"><input id="readAloud" type="checkbox"> Read aloud</label>
+          </div>
         </div>
+      </section>
+
+      <section class="conversation-promo">
+        <div>
+          <p class="kicker">VOICE + MESSAGES</p>
+          <h2>Make room for a real conversation.</h2>
+          <p>Invite someone. Speak your language. Read theirs in yours.</p>
+        </div>
+        <div class="promo-action">
+          <button id="startConversation" class="primary-button large">Start a conversation</button>
+          <span>Two people. One invitation link.</span>
+        </div>
+      </section>
+
+      <section class="hello-card">
+        <div>
+          <p class="eyebrow">Try a first hello</p>
+          <h3>Test your language pair.</h3>
+          <p>Hello! It is nice to meet you.</p>
+        </div>
+        <button id="tryHello" class="secondary-button">Try it</button>
+      </section>
+
+      <p class="permission-note">Microphone access is always your choice.</p>
+      <button id="howRelayWorks" class="how-button">How Relay works ↓</button>
+      <div id="howPanel" class="how-panel" hidden>
+        Relay turns speech into text, translates the text, and can read the translation aloud. Conversation links let two people join the same Relay room.
       </div>
     </section>
 
-    <section id="callTab" class="panel">
-      <div class="call-card card">
-        <div class="call-status">
-          <div id="pulse" class="pulse"></div>
-          <div>
-            <strong id="callState">Ready</strong>
-            <div id="callHint">Tap the microphone and speak.</div>
+    <section id="conversationView" class="view">
+      <section class="conversation-head">
+        <div>
+          <p class="kicker">CONVERSATION</p>
+          <h1>Two people.<br>One room.</h1>
+          <p class="hero-copy">Speak or type. Relay sends both the original and translated message to the other person.</p>
+        </div>
+        <div class="room-card">
+          <span class="eyebrow">INVITATION LINK</span>
+          <input id="inviteLink" readonly aria-label="Invitation link">
+          <div class="room-actions">
+            <button id="copyInvite" class="secondary-button">Copy invite</button>
+            <button id="newRoom" class="text-button">New room</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="conversation-layout">
+        <div id="conversationMessages" class="conversation-messages">
+          <div class="conversation-empty">
+            <strong>Ready for a conversation.</strong>
+            <span>Invite someone, or start speaking.</span>
           </div>
         </div>
 
-        <div class="transcript-grid">
-          <article>
+        <aside class="call-panel">
+          <div class="call-status">
+            <span id="callDot" class="call-dot"></span>
+            <div>
+              <strong id="callStatus">Ready</strong>
+              <span id="callHint">Tap Start speaking.</span>
+            </div>
+          </div>
+          <div class="heard-card">
             <span class="eyebrow">HEARD</span>
             <p id="heardText">—</p>
-          </article>
+          </div>
+          <button id="callSpeakButton" class="primary-button large">Start speaking</button>
+          <label class="check-row"><input id="conversationReadAloud" type="checkbox" checked> Read incoming translation aloud</label>
+        </aside>
+      </section>
 
-          <article>
-            <span class="eyebrow">GOOGLE TRANSLATION</span>
-            <p id="voiceTranslation">—</p>
-          </article>
-        </div>
-
-        <div class="call-actions">
-          <button id="micButton" class="mic">🎙 Start speaking</button>
-
-          <label class="toggle">
-            <input id="autoSpeak" type="checkbox" checked>
-            Speak translation aloud
-          </label>
-        </div>
-
-        <p class="fine-print">
-          This prototype uses push-to-talk inside Relay. It does not intercept normal cellular,
-          FaceTime, WhatsApp, Telegram, or other apps' calls.
-        </p>
-      </div>
+      <section class="conversation-composer">
+        <textarea id="conversationInput" maxlength="1200" placeholder="Type a message…"></textarea>
+        <button id="sendConversation" class="primary-button">Translate & send</button>
+      </section>
     </section>
 
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <section id="settingsView" class="view settings-view">
+      <p class="kicker">SETTINGS AND PRIVACY</p>
+      <h1>You're in control.</h1>
+      <div class="settings-grid">
+        <article class="settings-card">
+          <h2>Read aloud</h2>
+          <p>Choose whether Relay automatically speaks translations.</p>
+          <label class="check-row"><input id="settingsReadAloud" type="checkbox"> Speak translations automatically</label>
+        </article>
+        <article class="settings-card">
+          <h2>Microphone</h2>
+          <p>Relay only asks for microphone access after you press a Speak button. Your browser controls the permission.</p>
+        </article>
+        <article class="settings-card">
+          <h2>Translation engine</h2>
+          <p id="engineStatus">Checking translation service…</p>
+        </article>
+      </div>
+    </section>
   </main>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
