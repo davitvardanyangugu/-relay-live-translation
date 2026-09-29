@@ -11,6 +11,10 @@ const port = process.env.PORT || 3000;
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
 
+// On Vercel, files in public/ are served by the CDN, but the Express root route
+// still needs an explicit response. Send the homepage to the deployed index file.
+app.get("/", (_req, res) => res.redirect("/index.html"));
+
 async function translateWithGoogle(text, source, target) {
   const key = process.env.GOOGLE_TRANSLATE_API_KEY;
   if (!key) throw new Error("Google API key is not configured.");
