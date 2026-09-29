@@ -294,7 +294,9 @@ function connectRoom() {
     return;
   }
 
-  socket = io();
+  socket = io({
+    transports: ["websocket"]
+  });
 
   socket.on("connect", () => {
     socket.emit("room:join", { roomId });
