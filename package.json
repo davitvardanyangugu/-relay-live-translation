@@ -1,6 +1,6 @@
 {
   "name": "relay-live-translation",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "description": "Relay: real-time voice and text translation prototype powered by Google Cloud Translation",
   "type": "module",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
   }
 }
