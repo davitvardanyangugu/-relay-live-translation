@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Relay BETA — Live Translation</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="brand-row">
+        <span class="brand">Relay</span>
+        <span class="pill">BETA</span>
+        <span id="apiState" class="api-state">Checking Google…</span>
+      </div>
+
+      <h1>Across languages.<br>In the moment.</h1>
+      <p>Google-powered translation for messages and voice conversations.</p>
+    </header>
+
+    <section class="language-bar card">
+      <label>
+        I speak
+        <select id="sourceLang">
+          <option value="auto" data-locale="en-US">Auto detect</option>
+          <option value="en" data-locale="en-US" selected>English</option>
+          <option value="hy" data-locale="hy-AM">Armenian</option>
+          <option value="ru" data-locale="ru-RU">Russian</option>
+          <option value="fr" data-locale="fr-FR">French</option>
+          <option value="de" data-locale="de-DE">German</option>
+          <option value="es" data-locale="es-ES">Spanish</option>
+          <option value="it" data-locale="it-IT">Italian</option>
+          <option value="pt" data-locale="pt-PT">Portuguese</option>
+          <option value="ar" data-locale="ar-SA">Arabic</option>
+          <option value="ka" data-locale="ka-GE">Georgian</option>
+          <option value="tr" data-locale="tr-TR">Turkish</option>
+        </select>
+      </label>
+
+      <button id="swap" class="swap" aria-label="Swap languages">⇄</button>
+
+      <label>
+        Translate to
+        <select id="targetLang">
+          <option value="hy" data-locale="hy-AM" selected>Armenian</option>
+          <option value="en" data-locale="en-US">English</option>
+          <option value="ru" data-locale="ru-RU">Russian</option>
+          <option value="fr" data-locale="fr-FR">French</option>
+          <option value="de" data-locale="de-DE">German</option>
+          <option value="es" data-locale="es-ES">Spanish</option>
+          <option value="it" data-locale="it-IT">Italian</option>
+          <option value="pt" data-locale="pt-PT">Portuguese</option>
+          <option value="ar" data-locale="ar-SA">Arabic</option>
+          <option value="ka" data-locale="ka-GE">Georgian</option>
+          <option value="tr" data-locale="tr-TR">Turkish</option>
+        </select>
+      </label>
+    </section>
+
+    <nav class="tabs" aria-label="Translation mode">
+      <button class="tab active" data-tab="text">💬 Texting</button>
+      <button class="tab" data-tab="call">📞 Call mode</button>
+    </nav>
+
+    <section id="textTab" class="panel active">
+      <div class="conversation card">
+        <div id="messages" class="messages">
+          <div class="empty">Type a message below. Relay will translate it with Google.</div>
+        </div>
+
+        <div class="composer">
+          <textarea id="messageInput" maxlength="3000" placeholder="Type a message…"></textarea>
+          <button id="sendText" class="primary">Translate</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="callTab" class="panel">
+      <div class="call-card card">
+        <div class="call-status">
+          <div id="pulse" class="pulse"></div>
+          <div>
+            <strong id="callState">Ready</strong>
+            <div id="callHint">Tap the microphone and speak.</div>
+          </div>
+        </div>
+
+        <div class="transcript-grid">
+          <article>
+            <span class="eyebrow">HEARD</span>
+            <p id="heardText">—</p>
+          </article>
+
+          <article>
+            <span class="eyebrow">GOOGLE TRANSLATION</span>
+            <p id="voiceTranslation">—</p>
+          </article>
+        </div>
+
+        <div class="call-actions">
+          <button id="micButton" class="mic">🎙 Start speaking</button>
+
+          <label class="toggle">
+            <input id="autoSpeak" type="checkbox" checked>
+            Speak translation aloud
+          </label>
+        </div>
+
+        <p class="fine-print">
+          This prototype uses push-to-talk inside Relay. It does not intercept normal cellular,
+          FaceTime, WhatsApp, Telegram, or other apps' calls.
+        </p>
+      </div>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
