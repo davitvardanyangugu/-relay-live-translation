@@ -429,3 +429,71 @@ if (initialRoom) {
 } else {
   checkHealth();
 }
+
+
+let deferredInstallPrompt = null;
+
+function relayIsInstalled() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function updateInstallUI() {
+  const button = $("installRelay");
+  const status = $("installStatus");
+  if (!button || !status) return;
+
+  if (relayIsInstalled()) {
+    button.textContent = "Installed";
+    button.disabled = true;
+    status.textContent = "Relay is installed on this device.";
+    return;
+  }
+
+  button.disabled = false;
+  button.textContent = "Install Relay";
+
+  const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  status.textContent = isiOS
+    ? "In Safari, tap Share, then Add to Home Screen."
+    : deferredInstallPrompt
+      ? "Relay is ready to install."
+      : "Add Relay to your Home Screen from your browser menu.";
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  updateInstallUI();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  updateInstallUI();
+  toast("Relay installed.");
+});
+
+$("installRelay")?.addEventListener("click", async () => {
+  if (relayIsInstalled()) {
+    toast("Relay is already installed.");
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    updateInstallUI();
+    return;
+  }
+
+  const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  toast(isiOS
+    ? "Safari: tap Share, then Add to Home Screen."
+    : "Use your browser menu and choose Install app or Add to Home Screen.");
+});
+
+updateInstallUI();
